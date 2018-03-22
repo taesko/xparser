@@ -1,7 +1,6 @@
 import re
 import itertools
 
-
 COMMENT_START = '!'
 DEFINE_START = '#'
 RESOURCE_SEP = ':'
@@ -19,49 +18,6 @@ class MissingTokenError(XParseError):
         super().__init__(msg)
         self.token = token
         self.line = line
-
-
-class UnexpectedTokenError(XParseError):
-
-    def __init__(self, token, line=None):
-        msg = f'found an inexpected "{token}"'
-        if line:
-            msg += f'at line {line}'
-        super().__init__(msg)
-        self.token = token
-        self.line = line
-
-
-class PosIter:
-    line_sep = '\n'
-
-    def __init__(self, text_iterable):
-        self.iterable = iter(text_iterable)
-        self.line = 0
-        self.column = 0
-        self.was_on_newline = False
-
-    def advance_line(self):
-        self.line += 1
-        self.column = 0
-
-    def advance_column(self):
-        self.column += 1
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        character = next(self.iterable)
-        if character != self.line_sep and self.was_on_newline:
-            # the last character was a newline so we advance only the line to get to column 0 for the current character
-            self.advance_line()
-        else:
-            # advance the column for all characters including newline
-            self.advance_column()
-        if character == self.line_sep:
-            self.was_on_newline = True
-        return character
 
 
 class PeekableIter:
@@ -97,10 +53,27 @@ def take_line(iterable):
 
 
 class XStatement:
+
+    @property
+    def line(self):
+        return self._line
+
+    @classmethod
+    def from_iter(cls, iterable, linenum):
+        raise NotImplementedError()
+
+    def __str__(self):
+        raise NotImplementedError()
+
+    def __repr__(self):
+        raise NotImplementedError()
+
+
+class XResourceStatement(XStatement):
     def __init__(self, resource, value, line):
         self.resource = resource
         self.value = value
-        self.line = line
+        self._line = line
 
     @classmethod
     def from_iter(cls, iterable, linenum):
@@ -121,12 +94,12 @@ class XStatement:
         return f'{self.__class__.__name__}(resource={self.resource}, value={self.value}, line={self.line}'
 
 
-class XDefine:
+class XDefineStatement(XStatement):
 
     def __init__(self, name, value, line):
         self.name = name
         self.value = value
-        self.line = line
+        self._line = line
 
     @classmethod
     def from_iter(cls, iterable, linenum):
@@ -146,18 +119,18 @@ class XDefine:
         return f'{self.__class__.__name__}(name={self.name}, value={self.value}, line={self.line}'
 
 
-class XComment:
+class XCommentStatement(XStatement):
 
     def __init__(self, comment, line):
         self.comment = comment
-        self.line = line
+        self._line = line
 
     @classmethod
-    def from_iter(cls, iterable, line):
+    def from_iter(cls, iterable, linenum):
         iterable = iter(iterable)
         if not next(iterable) == COMMENT_START:
-            raise MissingTokenError(token=COMMENT_START, line=line)
-        return cls(comment=take_line(iterable), line=line)
+            raise MissingTokenError(token=COMMENT_START, line=linenum)
+        return cls(comment=take_line(iterable), line=linenum)
 
     def __str__(self):
         return f"{COMMENT_START}{self.comment}\n"
@@ -173,19 +146,27 @@ class XParser:
     """
 
     def __init__(self, text_iterable=None):
-        self.pos_iter = None
+        self.current_line = 0
         self.peek_iter = None
         self.resources = {}
         self.defines = {}
         self.comments = []
-        self.resources = {}
+        self.empty_lines = []
         if text_iterable:
             self.parse(text_iterable)
 
+    @classmethod
+    def from_file(cls, file):
+        with open(file) as f:
+            cls(f.read())
+
+    def parse_file(self, file):
+        with open(file) as f:
+            self.parse(f.read())
+
     def parse(self, text_iterable):
         self.clear()
-        self.pos_iter = PosIter(text_iterable)
-        self.peek_iter = PeekableIter(self.pos_iter)
+        self.peek_iter = PeekableIter(text_iterable)
         while True:
             try:
                 next_char = self.peek_iter.peek()
@@ -193,29 +174,42 @@ class XParser:
                 break
             if next_char == DEFINE_START:
                 self.parse_define()
+                self.current_line += 1
             elif next_char == COMMENT_START:
                 self.parse_comment()
-            elif next_char in ('\n', ' '):
-                next(self.peek_iter)  # advance the iterable and skip the newline
-                continue
+                self.current_line += 1
+            elif next_char == '\n':
+                self.parse_empty_line()
+                self.current_line += 1
+            elif next_char == ' ':
+                self.parse_white_space()
             else:
-                self.parse_statement()
+                self.parse_resource()
+                self.current_line += 1
 
     def clear(self):
-        self.pos_iter = None
         self.peek_iter = None
+        self.current_line = 0
         self.resources.clear()
         self.defines.clear()
         self.comments.clear()
         self.resources.clear()
 
-    def parse_statement(self):
-        st = XStatement.from_iter(self.peek_iter, linenum=self.pos_iter.line)
+    def parse_resource(self):
+        st = XResourceStatement.from_iter(self.peek_iter, linenum=self.current_line)
         self.resources[st.resource] = st
 
     def parse_comment(self):
-        self.comments.append(XComment.from_iter(self.peek_iter, line=self.pos_iter.line))
+        self.comments.append(XCommentStatement.from_iter(self.peek_iter, linenum=self.current_line))
 
     def parse_define(self):
-        d = XDefine.from_iter(self.peek_iter, linenum=self.pos_iter.line)
+        d = XDefineStatement.from_iter(self.peek_iter, linenum=self.current_line)
         self.defines[d.name] = d
+
+    def parse_empty_line(self):
+        assert next(self.peek_iter) == '\n'
+        self.empty_lines.append(self.current_line)
+
+    def parse_white_space(self):
+        assert next(self.peek_iter) == ' '
+

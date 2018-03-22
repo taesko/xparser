@@ -1,6 +1,6 @@
 import pytest
 
-from xrp.parser import XParser, XParseError, XComment, MissingTokenError, XDefine, XStatement
+from xrp.parser import XParser, XParseError, XCommentStatement, MissingTokenError, XDefineStatement, XResourceStatement
 
 
 class TestXParser:
@@ -9,14 +9,16 @@ class TestXParser:
     def parser(self):
         return XParser()
 
-    @pytest.mark.parametrize('string,defines,comments,resources,error', [
+    @pytest.mark.parametrize('string,defines,comments,resources, empty_lines, error', [
         ("""
 ! configure color scheme
+
 #define black #000000
+
 *foreground: black
-""", {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, None)
+""", {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [2, 4], None)
     ])
-    def test_parse(self, string, defines, comments, resources, error):
+    def test_parse(self, string, defines, comments, resources, empty_lines, error):
         parser = XParser()
         if error:
             with pytest.raises(error):
@@ -28,6 +30,9 @@ class TestXParser:
             for name, val in defines.items():
                 assert val == parser.defines[name].value
             assert comments == [str(c) for c in parser.comments]
+            string_by_line = string.split('\n')
+            for line_num in empty_lines:
+                assert string_by_line[line_num].strip() == ''
 
     def test_parse_file(self):
         import tests.data.parsed.strawberry as sw
@@ -39,6 +44,9 @@ class TestXParser:
             assert resource.value == sw.statements[resource_id]
         for name, define_statement in parser.defines.items():
             assert define_statement.value == sw.defines[name]
+        for line_num, line_string in enumerate(file_string.splitlines()):
+            if not line_string:
+                assert line_num in parser.empty_lines
 
     def test_clear(self):
         pass
@@ -113,10 +121,10 @@ class TestXComment:
         line = 0
         if error:
             with pytest.raises(error):
-                XComment.from_iter(string, line)
+                XCommentStatement.from_iter(string, line)
         else:
             expected = string
-            xc = XComment.from_iter(string, line)
+            xc = XCommentStatement.from_iter(string, line)
             if string.startswith('!'):
                 expected = expected[1:]
             if string.endswith('\n'):
@@ -136,10 +144,10 @@ class TestXDefine:
         linenum = 0
         if error:
             with pytest.raises(error):
-                XDefine.from_iter(string, linenum)
+                XDefineStatement.from_iter(string, linenum)
         else:
             expected = string
-            xd = XDefine.from_iter(string, linenum)
+            xd = XDefineStatement.from_iter(string, linenum)
             assert expected == str(xd)
 
 
@@ -154,8 +162,8 @@ class TestXStatement:
         linenum = 0
         if error:
             with pytest.raises(error):
-                XStatement.from_iter(string, linenum)
+                XResourceStatement.from_iter(string, linenum)
         else:
             expected = string
-            xs = XStatement.from_iter(iterable=string, linenum=linenum)
+            xs = XResourceStatement.from_iter(iterable=string, linenum=linenum)
             return expected == str(xs)

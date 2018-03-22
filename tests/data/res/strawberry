@@ -28,7 +28,7 @@
 #define base0F #2b1d24
 #define basefg #F0F0F0
 
- 
+    
 URxvt*color0:       base00
 URxvt*color1:       base01
 URxvt*color2:       base02
