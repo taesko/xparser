@@ -1,6 +1,3 @@
-# project-specific
-tests/fixtures/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -43,7 +40,9 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache
 nosetests.xml
+
 coverage.xml
 *,cover
 .hypothesis/
