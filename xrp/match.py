@@ -1,34 +1,7 @@
-import collections
 import itertools
 
 MAX_RESOURCE_COMPONENTS = 4
 WILDCARDS = ('*', '?')
-
-
-class Resources(collections.UserDict):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.resource_statements = self.data
-
-    def __getitem__(self, item):
-        return self.resource_statements[item].value
-
-    def __setitem__(self, key, value):
-        if key in self:
-            raise NotImplementedError()
-        else:
-            super().__setitem__(key, value)
-
-    def __delitem__(self, key):
-        raise NotImplementedError()
-
-    def filter(self, string):
-        resources = self.resource_statements
-        for res_id, value in resources.items():
-            if match_resource(resource=res_id, string=string):
-                resources[res_id] = value
-        return self.__class__(resources)
 
 
 class _MatchResource:
