@@ -1,9 +1,11 @@
 import re
 import itertools
+import abc
 
 COMMENT_START = '!'
 DEFINE_START = '#'
 RESOURCE_SEP = ':'
+WHITESPACE_CHARS = (' ', '\n')
 
 
 class XParseError(Exception):
@@ -52,19 +54,22 @@ def take_line(iterable):
     return ''.join(itertools.takewhile(lambda c: c != '\n', iterable))
 
 
-class XStatement:
+class XStatement(abc.ABC):
 
     @property
     def line(self):
         return self._line
 
     @classmethod
+    @abc.abstractmethod
     def from_iter(cls, iterable, linenum):
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def __str__(self):
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def __repr__(self):
         raise NotImplementedError()
 
@@ -91,7 +96,7 @@ class XResourceStatement(XStatement):
         return f"{self.resource}{RESOURCE_SEP}{self.value}\n"
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(resource={self.resource}, value={self.value}, line={self.line}'
+        return f'{self.__class__.__name__}(resource={self.resource}, value={self.value}, line={self.line})'
 
 
 class XDefineStatement(XStatement):
@@ -116,7 +121,7 @@ class XDefineStatement(XStatement):
         return f'{DEFINE_START}define {self.name} {self.value}\n'
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name={self.name}, value={self.value}, line={self.line}'
+        return f'{self.__class__.__name__}(name={self.name}, value={self.value}, line={self.line})'
 
 
 class XCommentStatement(XStatement):
@@ -136,7 +141,29 @@ class XCommentStatement(XStatement):
         return f"{COMMENT_START}{self.comment}\n"
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(comment={self.comment}, line={self.line}'
+        return f'{self.__class__.__name__}(comment={self.comment}, line={self.line})'
+
+
+class Whitespace(XStatement):
+    def __init__(self, line_string, line):
+        if any(c not in WHITESPACE_CHARS for c in line_string):
+            raise ValueError(f'line "{line_string}" has non whitespace characters')
+        self._line = line
+        self.line_string = line_string
+
+    @classmethod
+    def from_iter(cls, iterable, linenum):
+        assert iterable.peek() in WHITESPACE_CHARS
+        try:
+            return cls(line_string=take_line(iterable)+'\n', line=linenum)
+        except ValueError:
+            raise XParseError("line at {} has non whitespace characters".format(linenum))
+
+    def __str__(self):
+        return self.line_string
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(line={self.line})'
 
 
 class XParser:
@@ -151,41 +178,30 @@ class XParser:
         self.resources = {}
         self.defines = {}
         self.comments = []
+        self.whitespace = []
         self.empty_lines = []
+
         if text_iterable:
             self.parse(text_iterable)
 
-    @classmethod
-    def from_file(cls, file):
-        with open(file) as f:
-            cls(f.read())
-
     def parse_file(self, file):
         with open(file) as f:
-            self.parse(f.read())
+            yield from self.parse(f.read())
 
     def parse(self, text_iterable):
         self.clear()
         self.peek_iter = PeekableIter(text_iterable)
+        lines = []
         while True:
             try:
                 next_char = self.peek_iter.peek()
             except StopIteration:
                 break
-            if next_char == DEFINE_START:
-                self.parse_define()
-                self.current_line += 1
-            elif next_char == COMMENT_START:
-                self.parse_comment()
-                self.current_line += 1
-            elif next_char == '\n':
-                self.parse_empty_line()
-                self.current_line += 1
-            elif next_char == ' ':
-                self.parse_white_space()
-            else:
-                self.parse_resource()
-                self.current_line += 1
+            method = self.parse_method_for(next_char)
+            value = method()
+            lines.append(value)
+            self.current_line += 1
+        return lines
 
     def clear(self):
         self.peek_iter = None
@@ -193,23 +209,37 @@ class XParser:
         self.resources.clear()
         self.defines.clear()
         self.comments.clear()
-        self.resources.clear()
+        self.whitespace.clear()
+        self.empty_lines.clear()
 
     def parse_resource(self):
         st = XResourceStatement.from_iter(self.peek_iter, linenum=self.current_line)
         self.resources[st.resource] = st
+        return st
 
     def parse_comment(self):
-        self.comments.append(XCommentStatement.from_iter(self.peek_iter, linenum=self.current_line))
+        cs = XCommentStatement.from_iter(self.peek_iter, linenum=self.current_line)
+        self.comments.append(cs)
+        return cs
 
     def parse_define(self):
         d = XDefineStatement.from_iter(self.peek_iter, linenum=self.current_line)
         self.defines[d.name] = d
-
-    def parse_empty_line(self):
-        assert next(self.peek_iter) == '\n'
-        self.empty_lines.append(self.current_line)
+        return d
 
     def parse_white_space(self):
-        assert next(self.peek_iter) == ' '
+        ws = Whitespace.from_iter(iterable=self.peek_iter, linenum=self.current_line)
+        self.empty_lines.append(self.current_line)
+        self.whitespace.append(ws)
+        return ws
+
+    def parse_method_for(self, next_char):
+        switch = {
+            DEFINE_START: self.parse_define,
+            COMMENT_START: self.parse_comment,
+            WHITESPACE_CHARS[0]: self.parse_white_space,
+            WHITESPACE_CHARS[1]: self.parse_white_space,
+        }
+        func = switch.get(next_char, self.parse_resource)
+        return func
 

@@ -1,6 +1,5 @@
-import collections.abc
 import abc
-
+import collections.abc
 import itertools
 
 from xrp.match import match_resource
@@ -133,14 +132,26 @@ class Comments(BaseListView):
         return self.comment_statements[key].value
 
 
-class EmptyLines(collections.UserList):
+class EmptyLines(collections.abc.Sequence):
+    def __init__(self, whitespace_list, empty_lines):
+        self.whitespace_list = whitespace_list
+        self.empty_lines = empty_lines
+
     @classmethod
     def from_parser(cls, parser):
-        return cls(parser.empty_lines)
+        return cls(parser.whitespace, parser.empty_lines)
+
+    def __getitem__(self, item):
+        return self.empty_lines[item]
+
+    def __len__(self):
+        assert len(self.whitespace_list) == len(self.empty_lines)
+        return len(self.whitespace_list)
 
     def text_at_line(self, line_num):
-        if line_num in self:
-            return '\n'
+        for ws in self.whitespace_list:
+            if ws.line == line_num:
+                return str(ws)
         else:
             raise IndexError('line {} is not an empty line'.format(line_num))
 

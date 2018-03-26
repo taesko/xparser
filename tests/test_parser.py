@@ -75,7 +75,7 @@ incorrect statement""", {}, XParseError)
 !#define commented out
 !pew pew pew
 !*color0 = out""", ['!#define commented out\n', '!pew pew pew\n', '!*color0 = out\n'], None),
-        (""" ! bad comment""", ['! bad comment\n'], None)
+        (""" ! bad comment""", [], XParseError)
     ])
     def test_parse_comment(self, string, result, error):
         parser = XParser()

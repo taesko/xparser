@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 import pytest
 
 import xrp.parser
@@ -53,10 +51,7 @@ class TestXFileView:
 
     def test_text_at_line(self, xfileview, contents):
         for line_num, line_string in enumerate(contents.splitlines()):
-            # remove extra whitespace from line string because parser strips it away
-            if not line_string.strip():
-                line_string = line_string.strip()
-            elif 'define' in line_string:
+            if 'define' in line_string:
                 line_string = line_string.replace('  ', ' ')
             elif ':' in line_string:
                 line_string = line_string.replace(' ', '')
