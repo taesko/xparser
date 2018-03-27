@@ -1,9 +1,9 @@
-from .parser import XParser
 from xrp.views import XFileView
+from .parser import XParser
 
 
 def parse(text):
-    return XFileView.from_parser(XParser(text_iterable=text))
+    return XFileView(XParser(text_iterable=text))
 
 
 def parse_file(file):

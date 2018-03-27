@@ -10,7 +10,7 @@ class TestResources:
         parser = xrp.parser.XParser()
         with open(file_path) as f:
             parser.parse(f.read())
-        return xrp.views.Resources(parser.resources)
+        return xrp.views.ResourcesView.of_parser(parser)
 
     @pytest.fixture(scope='class')
     def strawberry_resources(self):
@@ -33,7 +33,7 @@ class TestEmptyLines:
     def test_text_at_line(self, file):
         with open(file) as f:
             contents = f.read()
-        lines = xrp.views.EmptyLines.from_parser(xrp.XParser(contents))
+        lines = xrp.views.EmptyLinesView.of_parser(xrp.XParser(contents))
         file_lines = contents.splitlines()
         empty_lines = [file_line_num for file_line_num, line_string in enumerate(file_lines) if not line_string.strip()]
         assert sorted(lines) == sorted(empty_lines)
@@ -47,7 +47,7 @@ class TestXFileView:
 
     @pytest.fixture(scope='class')
     def xfileview(self, contents):
-        return xrp.views.XFileView.from_parser(xrp.XParser(contents))
+        return xrp.views.XFileView(xrp.XParser(contents))
 
     def test_text_at_line(self, xfileview, contents):
         for line_num, line_string in enumerate(contents.splitlines()):

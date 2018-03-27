@@ -9,7 +9,7 @@ class BaseView(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_parser(cls, parser):
+    def of_parser(cls, parser):
         raise NotImplementedError()
 
     @property
@@ -53,39 +53,18 @@ class BaseDictView(BaseView, collections.abc.Mapping):
             yield key
 
 
-class BaseListView(BaseView, collections.abc.Mapping):
-    @property
-    @abc.abstractmethod
-    def list_data(self):
-        raise NotImplementedError()
+class ResourcesView(BaseDictView):
 
-    @property
-    def x_statements(self):
-        return self.list_data
+    def __init__(self, resource_statements):
+        self.resource_statements = resource_statements
 
-    def x_statement(self, index):
-        return self.list_data[index]
-
-    def __len__(self):
-        return len(self.list_data)
-
-    def __iter__(self):
-        for index in range(len(self)):
-            yield self[index]
-
-
-class Resources(BaseDictView):
-
-    def __init__(self, resources):
-        self.resource_statements = resources
+    @classmethod
+    def of_parser(cls, parser):
+        return cls(parser.resources)
 
     @property
     def dict_data(self):
         return self.resource_statements
-
-    @classmethod
-    def from_parser(cls, parser):
-        return cls(parser.resources)
 
     def __getitem__(self, key):
         return self.resource_statements[key].value
@@ -98,13 +77,13 @@ class Resources(BaseDictView):
         return self.__class__(resources)
 
 
-class Definitions(BaseDictView):
+class DefinitionsView(BaseDictView):
 
-    def __init__(self, definitions):
-        self.define_statements = definitions
+    def __init__(self, define_statements):
+        self.define_statements = define_statements
 
     @classmethod
-    def from_parser(cls, parser):
+    def of_parser(cls, parser):
         return cls(parser.defines)
 
     @property
@@ -115,57 +94,98 @@ class Definitions(BaseDictView):
         return self.define_statements[key].value
 
 
-class Comments(BaseListView):
+class CommentsView(BaseView, collections.Sequence):
 
     def __init__(self, comment_statements):
         self.comment_statements = comment_statements
 
     @classmethod
-    def from_parser(cls, parser):
+    def of_parser(cls, parser):
         return cls(parser.comments)
 
     @property
-    def list_data(self):
+    def x_statements(self):
         return self.comment_statements
+
+    def x_statement(self, line):
+        return self.comment_statements[line]
 
     def __getitem__(self, key):
         return self.comment_statements[key].value
 
+    def __len__(self):
+        return len(self.comment_statements)
 
-class EmptyLines(collections.abc.Sequence):
+
+class EmptyLinesView(BaseView, collections.abc.Sequence):
+
     def __init__(self, whitespace_list, empty_lines):
         self.whitespace_list = whitespace_list
         self.empty_lines = empty_lines
+        assert self.empty_lines == [ws.line for ws in self.whitespace_list]
 
     @classmethod
-    def from_parser(cls, parser):
+    def of_parser(cls, parser):
         return cls(parser.whitespace, parser.empty_lines)
 
-    def __getitem__(self, item):
-        return self.empty_lines[item]
+    @property
+    def x_statements(self):
+        return self.whitespace_list
+
+    def x_statement(self, index):
+        """ Return the parsed Whitespace object of the n-th empty line"""
+        return self.whitespace_list[index]
+
+    def __getitem__(self, n):
+        """ Return the line number of the n-th empty line."""
+        return self.empty_lines[n]
 
     def __len__(self):
+        """ Return the number of empty lines"""
         assert len(self.whitespace_list) == len(self.empty_lines)
         return len(self.whitespace_list)
 
-    def text_at_line(self, line_num):
-        for ws in self.whitespace_list:
-            if ws.line == line_num:
-                return str(ws)
-        else:
-            raise IndexError('line {} is not an empty line'.format(line_num))
 
+class XFileView(BaseView, collections.abc.Sequence):
+    def __init__(self, parser):
+        self.resources = ResourcesView.of_parser(parser)
+        self.definitions = DefinitionsView.of_parser(parser)
+        self.comments = CommentsView.of_parser(parser)
+        self.whitespace = EmptyLinesView.of_parser(parser)
+        self.line_count = parser.current_line
+        self.views = [self.resources, self.definitions, self.comments, self.whitespace]
 
-class XFileView(collections.namedtuple('ParsedData', ['resources', 'definitions', 'comments', 'whitespace'])):
     @classmethod
-    def from_parser(cls, parser):
-        return cls(resources=Resources.from_parser(parser),
-                   definitions=Definitions.from_parser(parser),
-                   comments=Comments.from_parser(parser),
-                   whitespace=EmptyLines.from_parser(parser))
+    def of_parser(cls, parser):
+        return cls(parser)
+
+    @property
+    def x_statements(self):
+        """ Return a chain of parsed XStatements."""
+        parts = (view.x_statements for view in self.views)
+        return itertools.chain(*parts)
+
+    def x_statement(self, line_num):
+        """ Return the XStatement at :line_num:."""
+        for view in self.views:
+            try:
+                return view.statement_at_line(line_num)
+            except IndexError:
+                pass
+        else:
+            raise IndexError(f"no parsed XStatement at line {line_num}")
+
+    def __getitem__(self, line):
+        """ Return XStatement at line"""
+        return self.x_statement(line_num=line)
+
+    def __len__(self):
+        """ Return number of parsed lines."""
+        return self.line_count
 
     def text_at_line(self, line_num):
-        for view in self:
+        """ Return string of the text at :line_num:."""
+        for view in self.views:
             try:
                 return view.text_at_line(line_num=line_num)
             except IndexError:
@@ -175,6 +195,7 @@ class XFileView(collections.namedtuple('ParsedData', ['resources', 'definitions'
                 "line {} is not in {} perhaps the parsed file was smaller".format(line_num, self.__class__.__name__))
 
     def full_text(self):
+        """ Rebuild the string from it's parsed XStatements."""
         lines = []
         for line_num in itertools.count():
             try:
