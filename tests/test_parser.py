@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from xrp.parser import XParser, XParseError, XCommentStatement, MissingTokenError, XDefineStatement, XResourceStatement
+from xrp.parser import XParser, XParseError, XCommentStatement, XDefineStatement, XResourceStatement
 
 
 class TestXParser:
@@ -127,9 +127,9 @@ incorrect statement""", {}, XParseError)
 class TestXComment:
     @pytest.mark.parametrize('string,error', [
         ("!comment at the start of the line\n", None),
-        ("#define smth value !incorrect comment at the end\n", MissingTokenError),
-        ("missing exclamation char\n", MissingTokenError),
-        ("\n!comment after a newline shouldn't be parsed\n", MissingTokenError),
+        ("#define smth value !incorrect comment at the end\n", XParseError),
+        ("missing exclamation char\n", XParseError),
+        ("\n!comment after a newline shouldn't be parsed\n", XParseError),
         ("!comment with missing newline char should get parsed because it mightt be the last line", None)
     ])
     def test_from_iter(self, string, error):

@@ -102,7 +102,7 @@ class XResourceStatement(XStatement):
             resource_val = match.group(2).strip()
             return cls(resource=resource_id, value=resource_val, line=linenum)
         else:
-            raise XParseError(f"Incorrect statement {line} at line {linenum}")
+            raise XParseError(f"Incorrect statement '{line}' at line {linenum}")
 
     def __str__(self):
         return f"{self.resource}{RESOURCE_SEP}{self.value}\n"
@@ -127,7 +127,7 @@ class XDefineStatement(XStatement):
             value = match.group(2)
             return cls(name=name, value=value, line=linenum)
         else:
-            raise XParseError(f"Incorrect define statement {line} at line {linenum}")
+            raise XParseError(f"Incorrect define statement '{line}' at line {linenum}")
 
     def __str__(self):
         return f'{DEFINE_START}define {self.name} {self.value}\n'
@@ -144,10 +144,10 @@ class XCommentStatement(XStatement):
 
     @classmethod
     def from_iter(cls, iterable, linenum):
-        iterable = iter(iterable)
-        if not next(iterable) == COMMENT_START:
-            raise MissingTokenError(token=COMMENT_START, line=linenum)
-        return cls(comment=take_line(iterable), line=linenum)
+        line = take_line(iterable)
+        if not line or not line[0] == COMMENT_START:
+            raise XParseError(f"Incorrect comment statement '{line}' at line {linenum}")
+        return cls(comment=line[1:], line=linenum)
 
     def __str__(self):
         return f"{COMMENT_START}{self.comment}\n"
@@ -170,7 +170,7 @@ class Whitespace(XStatement):
             line = take_line(iterable) + '\n'
             return cls(line_string=line, line=linenum)
         except ValueError:
-            raise XParseError(f"line {line} at {linenum} has non whitespace characters")
+            raise XParseError(f"line '{line}' at {linenum} has non whitespace characters")
 
     def __str__(self):
         return self.line_string
@@ -255,4 +255,3 @@ class XParser:
         }
         func = switch.get(next_char, self.parse_resource)
         return func
-
