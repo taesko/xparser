@@ -1,6 +1,6 @@
-import re
-import itertools
 import abc
+import itertools
+import re
 
 COMMENT_START = '!'
 DEFINE_START = '#'
@@ -84,13 +84,14 @@ class XResourceStatement(XStatement):
     def from_iter(cls, iterable, linenum):
         iterable = iter(iterable)
         line = take_line(iterable)
-        match = re.match(r'([ \w*.]+):(.*)', line)
+        # assumes every char but ':' can be part of a resource identifier
+        match = re.match(r'([^:]+):(.*)', line)
         if match:
             resource_id = match.group(1).strip()
             resource_val = match.group(2).strip()
             return cls(resource=resource_id, value=resource_val, line=linenum)
         else:
-            raise XParseError(f"Incorrect statement at line {linenum}")
+            raise XParseError(f"Incorrect statement {line} at line {linenum}")
 
     def __str__(self):
         return f"{self.resource}{RESOURCE_SEP}{self.value}\n"
@@ -115,7 +116,7 @@ class XDefineStatement(XStatement):
             value = match.group(2)
             return cls(name=name, value=value, line=linenum)
         else:
-            raise XParseError(f"Incorrect define statement at line {linenum}")
+            raise XParseError(f"Incorrect define statement {line} at line {linenum}")
 
     def __str__(self):
         return f'{DEFINE_START}define {self.name} {self.value}\n'
@@ -155,9 +156,10 @@ class Whitespace(XStatement):
     def from_iter(cls, iterable, linenum):
         assert iterable.peek() in WHITESPACE_CHARS
         try:
-            return cls(line_string=take_line(iterable)+'\n', line=linenum)
+            line = take_line(iterable) + '\n'
+            return cls(line_string=line, line=linenum)
         except ValueError:
-            raise XParseError("line at {} has non whitespace characters".format(linenum))
+            raise XParseError(f"line {line} at {linenum} has non whitespace characters")
 
     def __str__(self):
         return self.line_string

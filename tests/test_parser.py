@@ -18,7 +18,12 @@ class TestXParser:
 #define black #000000
 
 *foreground: black
-""", {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [2, 4], None)
+""",
+         {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [2, 4], None),
+        ("""
+Urxvt.perl-ext-common:default,clipboard,url-select,keyboard-select,resize-font
+        """,
+         {}, [], {'Urxvt.perl-ext-common': 'default,clipboard,url-select,keyboard-select,resize-font'}, [], None)
     ])
     def test_parse(self, string, defines, comments, resources, empty_lines, error):
         parser = XParser()
