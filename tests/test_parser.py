@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from xrp.parser import XParser, XParseError, XCommentStatement, MissingTokenError, XDefineStatement, XResourceStatement
@@ -47,6 +49,14 @@ class TestXParser:
         for line_num, line_string in enumerate(file_string.splitlines()):
             if not line_string:
                 assert line_num in parser.empty_lines
+
+    def test_parse_user(self):
+        """ Test parsing of ~/.Xresources"""
+        file = os.path.join(os.environ['HOME'], '.Xresources')
+        if os.path.exists(file):
+            parser = XParser()
+            with open(file) as f:
+                parser.parse(f.read())
 
     def test_clear(self):
         pass
