@@ -19,11 +19,11 @@ class TestXParser:
 
 *foreground: black
 """,
-         {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [2, 4], None),
+         {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [0, 2, 4], None),
         ("""
 Urxvt.perl-ext-common:default,clipboard,url-select,keyboard-select,resize-font
         """,
-         {}, [], {'Urxvt.perl-ext-common': 'default,clipboard,url-select,keyboard-select,resize-font'}, [], None)
+         {}, [], {'Urxvt.perl-ext-common': 'default,clipboard,url-select,keyboard-select,resize-font'}, [0, 2], None)
     ])
     def test_parse(self, string, defines, comments, resources, empty_lines, error):
         parser = XParser()
@@ -37,7 +37,7 @@ Urxvt.perl-ext-common:default,clipboard,url-select,keyboard-select,resize-font
             for name, val in defines.items():
                 assert val == parser.defines[name].value
             assert comments == [str(c) for c in parser.comments]
-            string_by_line = string.split('\n')
+            string_by_line = string.splitlines()
             for line_num in empty_lines:
                 assert string_by_line[line_num].strip() == ''
 
