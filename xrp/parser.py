@@ -1,6 +1,7 @@
 import abc
 import itertools
 import re
+import collections
 
 COMMENT_START = '!'
 DEFINE_START = '#'
@@ -27,7 +28,7 @@ class PeekableIter:
 
     def __init__(self, iterable):
         self.iterable = iter(iterable)
-        self.next_char = self._advance_iter()
+        self.character_queue = collections.deque()
 
     def _advance_iter(self):
         return next(self.iterable, self._exhausted)
@@ -36,18 +37,28 @@ class PeekableIter:
         return self
 
     def __next__(self):
-        return_val = self.next_char
-        if return_val == self._exhausted:
-            raise StopIteration()
+        if len(self.character_queue) == 0:
+            return next(self.iterable)
         else:
-            self.next_char = self._advance_iter()
-            return return_val
+            return self.character_queue.popleft()
 
-    def peek(self):
-        if self.next_char == self._exhausted:
-            raise StopIteration()
+    def peek(self, n=1):
+        """ Peek n steps ahead.
+
+        Raises ValueError if n is not a positive non-zero integer.
+
+        Raises StopIteration if n steps ahead is past the range of the iterable. You can still get
+        the characters before step which raises StopIteration (if there are any) by iterating over self.
+        """
+        if n <= 0:
+            raise ValueError("n argument must be a positive non-zero integer, got {} instead".format(n))
+        elif n <= len(self.character_queue):
+            return self.character_queue[n - 1]
         else:
-            return self.next_char
+            needed = n - len(self.character_queue)
+            for _ in range(needed):
+                self.character_queue.append(next(self.iterable))
+            return self.character_queue[n - 1]
 
 
 def take_line(iterable):
