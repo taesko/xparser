@@ -11,7 +11,7 @@ class TestXParser:
     def parser(self):
         return XParser()
 
-    @pytest.mark.parametrize('string,defines,comments,resources, empty_lines, error', [
+    @pytest.mark.parametrize('string,defines,comments,resources, empty_lines, includes, error', [
         ("""
 ! configure color scheme
 
@@ -19,13 +19,15 @@ class TestXParser:
 
 *foreground: black
 """,
-         {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [0, 2, 4], None),
+         {'black': '#000000'}, ['! configure color scheme\n'], {'*foreground': 'black'}, [0, 2, 4], [], None),
         ("""
 Urxvt.perl-ext-common:default,clipboard,url-select,keyboard-select,resize-font
         """,
-         {}, [], {'Urxvt.perl-ext-common': 'default,clipboard,url-select,keyboard-select,resize-font'}, [0, 2], None)
+         {}, [], {'Urxvt.perl-ext-common': 'default,clipboard,url-select,keyboard-select,resize-font'}, [0, 2], [],
+         None),
+        ('''#include "file_path"''', {}, [], {}, [], ['#include "file_path"'], None)
     ])
-    def test_parse(self, string, defines, comments, resources, empty_lines, error):
+    def test_parse(self, string, defines, comments, resources, empty_lines, includes, error):
         parser = XParser()
         if error:
             with pytest.raises(error):
@@ -37,6 +39,7 @@ Urxvt.perl-ext-common:default,clipboard,url-select,keyboard-select,resize-font
             for name, val in defines.items():
                 assert val == parser.defines[name].value
             assert comments == [str(c) for c in parser.comments]
+            assert includes == [str(i) for i in parser.includes]
             string_by_line = string.splitlines()
             for line_num in empty_lines:
                 assert string_by_line[line_num].strip() == ''

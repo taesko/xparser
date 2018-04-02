@@ -1,6 +1,7 @@
 import abc
 import itertools
 import re
+
 import collections
 
 COMMENT_START = '!'
@@ -156,6 +157,24 @@ class XCommentStatement(XStatement):
         return f'{self.__class__.__name__}(comment={self.comment}, line={self.line})'
 
 
+class XIncludeStatement(XStatement):
+
+    def __init__(self, include_file):
+        self.file = include_file
+
+    @classmethod
+    def from_iter(cls, iterable, linenum):
+        line = take_line(iterable)
+        match = re.match(pattern=r'#include "(.*)"', string=line)
+        return cls(include_file=match.group(1))
+
+    def __str__(self):
+        return f'#include "{self.file}"'
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.file})'
+
+
 class Whitespace(XStatement):
     def __init__(self, line_string, line):
         if any(c not in WHITESPACE_CHARS for c in line_string):
@@ -190,6 +209,7 @@ class XParser:
         self.peek_iter = None
         self.resources = {}
         self.defines = {}
+        self.includes = []
         self.comments = []
         self.whitespace = []
         self.empty_lines = []
@@ -240,6 +260,10 @@ class XParser:
         self.defines[d.name] = d
         return d
 
+    def parse_include(self):
+        i = XIncludeStatement.from_iter(self.peek_iter, linenum=self.current_line)
+        self.includes.append(i)
+
     def parse_white_space(self):
         ws = Whitespace.from_iter(iterable=self.peek_iter, linenum=self.current_line)
         self.empty_lines.append(self.current_line)
@@ -247,11 +271,14 @@ class XParser:
         return ws
 
     def parse_method_for(self, next_char):
-        switch = {
-            DEFINE_START: self.parse_define,
-            COMMENT_START: self.parse_comment,
-            WHITESPACE_CHARS[0]: self.parse_white_space,
-            WHITESPACE_CHARS[1]: self.parse_white_space,
-        }
-        func = switch.get(next_char, self.parse_resource)
-        return func
+        if self.peek_iter.peek() == COMMENT_START:
+            return self.parse_comment
+        elif self.peek_iter.peek() in WHITESPACE_CHARS:
+            return self.parse_white_space
+        elif self.peek_iter.peek() == '#':
+            if self.peek_iter.peek(2) == 'd':
+                return self.parse_define
+            elif self.peek_iter.peek(2) == 'i':
+                return self.parse_include
+        else:
+            return self.parse_resource

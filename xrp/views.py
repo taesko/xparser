@@ -1,6 +1,7 @@
 import abc
-import collections.abc
 import itertools
+
+import collections.abc
 
 from xrp.match import match_resource
 
@@ -94,6 +95,31 @@ class DefinitionsView(BaseDictView):
         return self.define_statements[key].value
 
 
+class IncludedView(BaseView, collections.Sequence):
+
+    def __init__(self, included):
+        self.included = included
+
+    @classmethod
+    def of_parser(cls, parser):
+        return cls(parser.includes)
+
+    @property
+    def x_statements(self):
+        return self.included
+
+    def x_statement(self, line):
+        for i in self.included:
+            if i.line == line:
+                return i
+
+    def __getitem__(self, i) -> str:
+        return self.included[i].file
+
+    def __len__(self) -> int:
+        return len(self.included)
+
+
 class CommentsView(BaseView, collections.Sequence):
 
     def __init__(self, comment_statements):
@@ -150,10 +176,11 @@ class XFileView(BaseView, collections.abc.Sequence):
     def __init__(self, parser):
         self.resources = ResourcesView.of_parser(parser)
         self.definitions = DefinitionsView.of_parser(parser)
+        self.included = IncludedView.of_parser(parser)
         self.comments = CommentsView.of_parser(parser)
         self.whitespace = EmptyLinesView.of_parser(parser)
         self.line_count = parser.current_line
-        self.views = [self.resources, self.definitions, self.comments, self.whitespace]
+        self.views = [self.resources, self.definitions, self.included, self.comments, self.whitespace]
 
     @classmethod
     def of_parser(cls, parser):
