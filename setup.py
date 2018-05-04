@@ -27,6 +27,13 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Note: this will only work if 'README.md' is present in MANIFEST.in file!
 with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = '\n' + f.read()
+try:
+    import pypandoc
+    long_description = pypandoc.convert(source=long_description, to='rst', format='markdown_github')
+except ImportError:
+    print("warning: pypandoc module not found, could not convert Markdown to RST")
+    # fail
+    raise
 
 # Load the package's __version__.py module as a dictionary.
 about = {}
