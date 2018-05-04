@@ -38,7 +38,7 @@ except ImportError:
 # Load the package's __version__.py module as a dictionary.
 about = {}
 if not VERSION:
-    with open(os.path.join(here, PACKAGE_NAME, '__version__.py')) as f:
+    with open(os.path.join(here, 'src', PACKAGE_NAME, '__version__.py')) as f:
         exec(f.read(), about)
 else:
     about['__version__'] = VERSION
@@ -92,6 +92,7 @@ setup(
     url=URL,
     python_requires=REQUIRES_PYTHON,
     packages=['xrp'],
+    package_dir={'': 'src'},
     install_requires=REQUIRED_FOR_INSTALL,
     tests_require=['pytest', 'pytest-runner'],
     include_package_data=True,
