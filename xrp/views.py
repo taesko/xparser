@@ -1,7 +1,6 @@
 import abc
 import itertools
-
-import collections.abc
+import collections
 
 from xrp.match import match_resource
 
@@ -33,7 +32,7 @@ class BaseView(abc.ABC):
         return str(self.statement_at_line(line_num))
 
 
-class BaseDictView(BaseView, collections.abc.Mapping):
+class BaseDictView(BaseView, collections.Mapping):
     @property
     @abc.abstractmethod
     def dict_data(self):
@@ -56,26 +55,29 @@ class BaseDictView(BaseView, collections.abc.Mapping):
 
 class ResourcesView(BaseDictView):
 
-    def __init__(self, resource_statements):
+    def __init__(self, resource_statements, def_ctx):
         self.resource_statements = resource_statements
+        self.definition_ctx = def_ctx
 
     @classmethod
     def of_parser(cls, parser):
-        return cls(parser.resources)
+        raise DeprecationWarning('of_parser is shit')
+        raise NotImplementedError('really shit')
 
     @property
     def dict_data(self):
         return self.resource_statements
 
     def __getitem__(self, key):
-        return self.resource_statements[key].value
+        raw_val = self.x_statement(key).value
+        return self.definition_ctx.get(raw_val, raw_val)
 
     def filter(self, string):
         resources = {}
         for res_id in self:
             if match_resource(resource=res_id, string=string):
                 resources[res_id] = self.x_statement(res_id)
-        return self.__class__(resources)
+        return self.__class__(resource_statements=resources, def_ctx=self.definition_ctx)
 
 
 class DefinitionsView(BaseDictView):
@@ -97,8 +99,8 @@ class DefinitionsView(BaseDictView):
 
 class IncludedView(BaseView, collections.Sequence):
 
-    def __init__(self, included):
-        self.included = included
+    def __init__(self, include_statements):
+        self.include_statements = include_statements
 
     @classmethod
     def of_parser(cls, parser):
@@ -106,18 +108,18 @@ class IncludedView(BaseView, collections.Sequence):
 
     @property
     def x_statements(self):
-        return self.included
+        return self.include_statements
 
     def x_statement(self, line):
-        for i in self.included:
+        for i in self.include_statements:
             if i.line == line:
                 return i
 
     def __getitem__(self, i) -> str:
-        return self.included[i].file
+        return self.include_statements[i].file
 
     def __len__(self) -> int:
-        return len(self.included)
+        return len(self.include_statements)
 
 
 class CommentsView(BaseView, collections.Sequence):
@@ -143,7 +145,7 @@ class CommentsView(BaseView, collections.Sequence):
         return len(self.comment_statements)
 
 
-class EmptyLinesView(BaseView, collections.abc.Sequence):
+class EmptyLinesView(BaseView, collections.Sequence):
 
     def __init__(self, whitespace_list, empty_lines):
         self.whitespace_list = whitespace_list
@@ -172,14 +174,14 @@ class EmptyLinesView(BaseView, collections.abc.Sequence):
         return len(self.whitespace_list)
 
 
-class XFileView(BaseView, collections.abc.Sequence):
+class XFileView(BaseView, collections.Sequence):
     def __init__(self, parser):
-        self.resources = ResourcesView.of_parser(parser)
-        self.definitions = DefinitionsView.of_parser(parser)
-        self.included = IncludedView.of_parser(parser)
-        self.comments = CommentsView.of_parser(parser)
-        self.whitespace = EmptyLinesView.of_parser(parser)
-        self.line_count = parser.current_line
+        self.included = IncludedView(include_statements=parser.includes)
+        self.definitions = DefinitionsView(define_statements=parser.defines)
+        self.resources = ResourcesView(resource_statements=parser.resources, def_ctx=self.definitions)
+        self.comments = CommentsView(comment_statements=parser.comments)
+        self.whitespace = EmptyLinesView(whitespace_list=parser.whitespace, empty_lines=parser.empty_lines)
+        self.line_count = parser.current_line + 1  # parser counts from 0
         self.views = [self.resources, self.definitions, self.included, self.comments, self.whitespace]
 
     @classmethod

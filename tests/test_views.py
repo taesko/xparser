@@ -6,24 +6,44 @@ import xrp.views
 
 class TestResources:
 
-    def resources(self, file_path):
-        parser = xrp.parser.XParser()
+    def get_file_view(self, file_path):
         with open(file_path) as f:
-            parser.parse(f.read())
-        return xrp.views.ResourcesView.of_parser(parser)
+            return self.get_string_view(f.read())
+
+    @staticmethod
+    def get_string_view(string):
+        parser = xrp.parser.XParser()
+        parser.parse(string)
+        return xrp.views.ResourcesView(resource_statements=parser.resources,
+                                       def_ctx=xrp.views.DefinitionsView(parser.defines))
 
     @pytest.fixture(scope='class')
     def strawberry_resources(self):
-        return self.resources('tests/data/res/strawberry')
+        return self.get_file_view('tests/data/res/strawberry')
 
     @pytest.mark.parametrize('file,filter_string,result_ids', [
         ('tests/data/res/strawberry', '*color0', ['URxvt*color0']),
         ('tests/data/res/strawberry', '*foreground', ['*foreground'])
     ])
     def test_filter(self, file, filter_string, result_ids):
-        res = self.resources(file)
+        res = self.get_file_view(file)
         filtered = res.filter(filter_string)
         assert sorted(filtered.keys()) == sorted(result_ids)
+
+    @pytest.mark.parametrize('input_,expected', [
+        (
+"""#define white #FFFFFF
+#define hotpink #FF69b4
+*color0: white
+*color1: hotpink
+""",
+{'*color0': '#FFFFFF', '*color1': '#FF69b4'}
+        )
+    ])
+    def test_defined(self, input_, expected):
+        res = self.get_string_view(input_)
+        for res_id, res_val in expected.items():
+            assert res[res_id] == res_val
 
 
 class TestEmptyLines:
