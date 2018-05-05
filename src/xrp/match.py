@@ -5,7 +5,10 @@ WILDCARDS = ('*', '?')
 
 
 class _MatchResource:
-    """
+    """ Match an arbitrary string to a resource identifier string.
+
+    Initialize with a resource identifier argument and a string pattern argument.
+    Only a single '*' character is supported in both arguments.
 
     Example usage:
     >>> _MatchResource("comp_a.*.comp_d.attribute", "comp_a.*.attribute").compare() == True
@@ -68,6 +71,7 @@ class _MatchResource:
         return all(itertools.starmap(self.compare_component, zip(self.expanded_resource, self.expanded_string)))
 
 
-def match_resource(resource, string):
-    mr = _MatchResource(resource, string)
+def match_resource(resource, pattern):
+    """ Match a resource to a string pattern and return a boolean."""
+    mr = _MatchResource(resource, pattern)
     return mr.compare()

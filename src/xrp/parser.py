@@ -25,6 +25,10 @@ class MissingTokenError(XParseError):
 
 
 class PeekableIter:
+    """ Iterator that can peek N steps ahead through a peek(n) method.
+
+    Initialize with a single iterable argument.
+    """
     _exhausted = object()
 
     def __init__(self, iterable):
@@ -63,10 +67,18 @@ class PeekableIter:
 
 
 def take_line(iterable):
+    """ Advances the iterable to the next new line and returns the passed characters as a string.
+
+    The newline character is not included.
+
+    :param iterable: any iterable
+    :return: a string of the next line.
+    """
     return ''.join(itertools.takewhile(lambda c: c != '\n', iterable))
 
 
 class XStatement(abc.ABC):
+    """ An ABC for parsed statements in an XResources file."""
 
     @property
     def line(self):
@@ -199,7 +211,20 @@ class Whitespace(XStatement):
 
 
 class XParser:
-    """ Parse an .Xresources file iterable to a dict of resource identifiers and assigned values.
+    """ Parse an .Xresources syntax to a dict of resource identifiers and assigned values.
+
+    Initialize with none or one optional arugment `text_iterable` which will be
+    parsed immediately.
+
+    The `parse` method can be used to parse a string and the `parse_file` method for files.
+
+    After parsing the following attributes hold the parsed data in the form of XStatements:
+    `resources` - dict of resource id strings to XResourceStatement values
+    `defines` - dict of names as strings to XDefineStatement values
+    `includes` - list of XIncludeStatement objects
+    `comments` - list of XCommentStatement objects
+    `whitespace` - list of Whitespace objects
+    `empty_lines` - list of line numbers that were empty (the first line number is considered to be 0)
 
     Wildcard expressions '?' and '*' are NOT expanded in the resource identifiers.
     """
@@ -222,6 +247,7 @@ class XParser:
             yield from self.parse(f.read())
 
     def parse(self, text_iterable):
+        """ Parse a string iterable."""
         self.clear()
         self.peek_iter = PeekableIter(text_iterable)
         lines = []
@@ -237,6 +263,7 @@ class XParser:
         return lines
 
     def clear(self):
+        """ Clear all data in preperation for parsing a new string."""
         self.peek_iter = None
         self.current_line = 0
         self.resources.clear()

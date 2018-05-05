@@ -1,5 +1,6 @@
 import abc
 import itertools
+
 import collections
 
 from xrp.match import match_resource
@@ -54,6 +55,23 @@ class BaseDictView(BaseView, collections.Mapping):
 
 
 class ResourcesView(BaseDictView):
+    """ An immutable mapping of resource identifiers to resource values.
+
+    Initialize by providing a dict/mapping of resource identifiers to
+    parsed resource statements and a dict/mapping of defined names to their values.
+    Strings are expected as the keys and values (except for resource statements).
+
+    This is a subclass of collections.Mapping and as such the common
+    dictionary interface and methods are implemented (__getitem__, __len__, .keys(),
+    .values(), .items(), etc.). The keys and values of this object are always strings.
+
+    The raw resource statements data is accessible through the `dict_data` property.
+    Modifying that object will be reflected in this class as this is a view of the object.
+
+    You can filter the view through regex with the use of the `filter` method which
+    returns a new object of the same class, but with only those resources who's identifier
+    matched the string. See xrp.match.match_resource for more details.
+    """
 
     def __init__(self, resource_statements, def_ctx):
         self.resource_statements = resource_statements
@@ -75,13 +93,20 @@ class ResourcesView(BaseDictView):
     def filter(self, string):
         resources = {}
         for res_id in self:
-            if match_resource(resource=res_id, string=string):
+            if match_resource(resource=res_id, pattern=string):
                 resources[res_id] = self.x_statement(res_id)
         return self.__class__(resource_statements=resources, def_ctx=self.definition_ctx)
 
 
 class DefinitionsView(BaseDictView):
+    """ A mapping of definition names to defined values.
 
+    Initialize with a single argument `define_statements` that is
+    a dict/mapping from names to parsed define statements. The keys are expected
+    to be strings.
+
+    Interface is similar to that of ResourcesView.
+    """
     def __init__(self, define_statements):
         self.define_statements = define_statements
 
@@ -98,6 +123,16 @@ class DefinitionsView(BaseDictView):
 
 
 class IncludedView(BaseView, collections.Sequence):
+    """ A sequence of included files.
+
+    Initialize with a single argument of a list of include statements.
+
+    This is a subclass of collections.Sequence as such the common
+    list interface and methods are implemented (__getitem__, __len__, etc.)
+    Indexing is 0 based and the return values of __getitem__ are always the strings
+    used in the include statement. They ARE NOT absolute paths to the included file
+    as those depend on the preprocessor arguments.
+    """
 
     def __init__(self, include_statements):
         self.include_statements = include_statements
@@ -123,6 +158,10 @@ class IncludedView(BaseView, collections.Sequence):
 
 
 class CommentsView(BaseView, collections.Sequence):
+    """ A sequence of comments. Interface is similar to IncludedView.
+
+    Initialize with a list of comment statements.
+    """
 
     def __init__(self, comment_statements):
         self.comment_statements = comment_statements
@@ -146,6 +185,15 @@ class CommentsView(BaseView, collections.Sequence):
 
 
 class EmptyLinesView(BaseView, collections.Sequence):
+    """ A sequence of lines without any non-whitespace characters.
+
+    Empty lines are considered lines without any non-whitespace characters.
+
+    Initialize with two arguments - a list of whitespace objects from xrp.parse
+    and a list of empty line objects from the same module.
+
+    Interface is similar to that of other sequence views.
+    """
 
     def __init__(self, whitespace_list, empty_lines):
         self.whitespace_list = whitespace_list
@@ -175,6 +223,7 @@ class EmptyLinesView(BaseView, collections.Sequence):
 
 
 class XFileView(BaseView, collections.Sequence):
+    """ A line by line sequence of the parsed file."""
     def __init__(self, parser):
         self.included = IncludedView(include_statements=parser.includes)
         self.definitions = DefinitionsView(define_statements=parser.defines)
