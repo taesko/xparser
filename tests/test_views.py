@@ -53,7 +53,9 @@ class TestEmptyLines:
     def test_text_at_line(self, file):
         with open(file) as f:
             contents = f.read()
-        lines = xrp.views.EmptyLinesView.of_parser(xrp.XParser(contents))
+        x_parser = xrp.XParser(contents)
+        lines = xrp.views.EmptyLinesView(whitespace_list=x_parser.whitespace,
+                                         empty_lines=x_parser.empty_lines)
         file_lines = contents.splitlines()
         empty_lines = [file_line_num for file_line_num, line_string in enumerate(file_lines) if not line_string.strip()]
         assert sorted(lines) == sorted(empty_lines)

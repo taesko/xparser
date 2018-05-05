@@ -8,11 +8,6 @@ from xrp.match import match_resource
 
 class BaseView(abc.ABC):
 
-    @classmethod
-    @abc.abstractmethod
-    def of_parser(cls, parser):
-        raise NotImplementedError()
-
     @property
     @abc.abstractmethod
     def x_statements(self):
@@ -77,11 +72,6 @@ class ResourcesView(BaseDictView):
         self.resource_statements = resource_statements
         self.definition_ctx = def_ctx
 
-    @classmethod
-    def of_parser(cls, parser):
-        raise DeprecationWarning('of_parser is shit')
-        raise NotImplementedError('really shit')
-
     @property
     def dict_data(self):
         return self.resource_statements
@@ -110,10 +100,6 @@ class DefinitionsView(BaseDictView):
     def __init__(self, define_statements):
         self.define_statements = define_statements
 
-    @classmethod
-    def of_parser(cls, parser):
-        return cls(parser.defines)
-
     @property
     def dict_data(self):
         return self.define_statements
@@ -136,10 +122,6 @@ class IncludedView(BaseView, collections.Sequence):
 
     def __init__(self, include_statements):
         self.include_statements = include_statements
-
-    @classmethod
-    def of_parser(cls, parser):
-        return cls(parser.includes)
 
     @property
     def x_statements(self):
@@ -165,10 +147,6 @@ class CommentsView(BaseView, collections.Sequence):
 
     def __init__(self, comment_statements):
         self.comment_statements = comment_statements
-
-    @classmethod
-    def of_parser(cls, parser):
-        return cls(parser.comments)
 
     @property
     def x_statements(self):
@@ -200,10 +178,6 @@ class EmptyLinesView(BaseView, collections.Sequence):
         self.empty_lines = empty_lines
         assert self.empty_lines == [ws.line for ws in self.whitespace_list]
 
-    @classmethod
-    def of_parser(cls, parser):
-        return cls(parser.whitespace, parser.empty_lines)
-
     @property
     def x_statements(self):
         return self.whitespace_list
@@ -232,10 +206,6 @@ class XFileView(BaseView, collections.Sequence):
         self.whitespace = EmptyLinesView(whitespace_list=parser.whitespace, empty_lines=parser.empty_lines)
         self.line_count = parser.current_line + 1  # parser counts from 0
         self.views = [self.resources, self.definitions, self.included, self.comments, self.whitespace]
-
-    @classmethod
-    def of_parser(cls, parser):
-        return cls(parser)
 
     @property
     def x_statements(self):
