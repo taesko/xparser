@@ -23,17 +23,24 @@ REQUIRED_FOR_INSTALL = []
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-# Import the README and use it as the long-description.
-# Note: this will only work if 'README.md' is present in MANIFEST.in file!
 with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = '\n' + f.read()
+
+# try to convert github markdown to restructured text because PyPI does not support the former
+# don't crash because this file is executed during installation through setup.py and not just during upload to PyPI
 try:
     import pypandoc
     long_description = pypandoc.convert(source=long_description, to='rst', format='markdown_github')
 except ImportError:
     print("warning: pypandoc module not found, could not convert Markdown to RST")
-    # fail
-    raise
+    long_description = ""
+except OSError:
+    print("warning: pandoc is not installed on this system - could not convert Markdown to RST")
+    long_description = ""
+except Exception as e:
+    print("warning: an unkown exception occurred while converting documentation to RST:")
+    print(e.args)
+    long_description = ""
 
 # Load the package's __version__.py module as a dictionary.
 about = {}
