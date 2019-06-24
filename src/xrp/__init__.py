@@ -22,7 +22,7 @@ def parse(text):
     return XFileView(XParser(text_iterable=text))
 
 
-def parse_file(file, encoding=''):
+def parse_file(file, encoding=None):
     """ Reads the file's contents and returns the output of parse(text=contents).
     """
     with open(file, encoding=encoding) as f:
