@@ -28,7 +28,7 @@ class BaseView(abc.ABC):
         return str(self.statement_at_line(line_num))
 
 
-class BaseDictView(BaseView, collections.Mapping):
+class BaseDictView(BaseView, collections.abc.Mapping):
     @property
     @abc.abstractmethod
     def dict_data(self):
@@ -56,7 +56,7 @@ class ResourcesView(BaseDictView):
     parsed resource statements and a dict/mapping of defined names to their values.
     Strings are expected as the keys and values (except for resource statements).
 
-    This is a subclass of collections.Mapping and as such the common
+    This is a subclass of collections.abc.Mapping and as such the common
     dictionary interface and methods are implemented (__getitem__, __len__, .keys(),
     .values(), .items(), etc.). The keys and values of this object are always strings.
 
@@ -108,12 +108,12 @@ class DefinitionsView(BaseDictView):
         return self.define_statements[key].value
 
 
-class IncludedView(BaseView, collections.Sequence):
+class IncludedView(BaseView, collections.abc.Sequence):
     """ A sequence of included files.
 
     Initialize with a single argument of a list of include statements.
 
-    This is a subclass of collections.Sequence as such the common
+    This is a subclass of collections.abc.Sequence as such the common
     list interface and methods are implemented (__getitem__, __len__, etc.)
     Indexing is 0 based and the return values of __getitem__ are always the strings
     used in the include statement. They ARE NOT absolute paths to the included file
@@ -139,7 +139,7 @@ class IncludedView(BaseView, collections.Sequence):
         return len(self.include_statements)
 
 
-class CommentsView(BaseView, collections.Sequence):
+class CommentsView(BaseView, collections.abc.Sequence):
     """ A sequence of comments. Interface is similar to IncludedView.
 
     Initialize with a list of comment statements.
@@ -162,7 +162,7 @@ class CommentsView(BaseView, collections.Sequence):
         return len(self.comment_statements)
 
 
-class EmptyLinesView(BaseView, collections.Sequence):
+class EmptyLinesView(BaseView, collections.abc.Sequence):
     """ A sequence of lines without any non-whitespace characters.
 
     Empty lines are considered lines without any non-whitespace characters.
@@ -196,7 +196,7 @@ class EmptyLinesView(BaseView, collections.Sequence):
         return len(self.whitespace_list)
 
 
-class XFileView(BaseView, collections.Sequence):
+class XFileView(BaseView, collections.abc.Sequence):
     """ A line by line sequence of the parsed file."""
     def __init__(self, parser):
         self.included = IncludedView(include_statements=parser.includes)
